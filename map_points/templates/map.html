@@ -1,0 +1,269 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mx-auto p-4">
+    <h1 class="text-2xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 rounded-lg shadow-lg">
+        Map Points
+    </h1>
+   
+    <!-- Floating Search Bar -->
+    <div class="relative z-[1000] mb-4">
+        <input type="text" id="search-input" placeholder="Search for places..." class="w-full p-3 border rounded-lg shadow-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        <!-- Dropdown for Search Results -->
+        <div id="search-results" class="absolute w-full bg-white rounded-lg shadow-lg mt-1 hidden max-h-60 overflow-y-auto">
+            <!-- Results will be dynamically inserted here -->
+        </div>
+    </div>
+
+    <!-- Map -->
+    <div id="map" class="h-96 mb-4 rounded-lg shadow-lg border border-gray-200"></div>
+
+    <!-- Modal for Adding Points -->
+    <div id="modal" class="fixed inset-0 z-[1000] hidden bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg shadow-lg w-11/12 md:w-1/2 lg:w-1/3 p-6">
+            <h2 class="text-xl font-bold mb-4">Add Point</h2>
+            <form id="point-form">
+                {% csrf_token %}
+                <div class="mb-4">
+                    <label for="title" class="block text-sm font-medium text-gray-700">Title</label>
+                    <input type="text" id="title" placeholder="Enter title" class="mt-1 p-2 w-full border rounded-md focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="mb-4">
+                    <label for="category" class="block text-sm font-medium text-gray-700">Category</label>
+                    <select id="category" class="mt-1 p-2 w-full border rounded-md focus:ring-2 focus:ring-blue-500">
+                        <option value="park">Park</option>
+                        <option value="restaurant">Restaurant</option>
+                        <option value="museum">Museum</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label for="icon" class="block text-sm font-medium text-gray-700">Icon</label>
+                    <select id="icon" class="mt-1 p-2 w-full border rounded-md focus:ring-2 focus:ring-blue-500">
+                        <option value="fas fa-map-marker-alt">📍 Default Marker</option>
+                        <option value="fas fa-tree">🌳 Park</option>
+                        <option value="fas fa-utensils">🍴 Restaurant</option>
+                        <option value="fas fa-landmark">🏛️ Museum</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label for="address" class="block text-sm font-medium text-gray-700">Address</label>
+                    <input type="text" id="address" placeholder="Enter address" class="mt-1 p-2 w-full border rounded-md focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="mb-4">
+                    <label for="city" class="block text-sm font-medium text-gray-700">City</label>
+                    <input type="text" id="city" placeholder="Enter city" class="mt-1 p-2 w-full border rounded-md focus:ring-2 focus:ring-blue-500">
+                </div>
+                <input type="hidden" id="latitude">
+                <input type="hidden" id="longitude">
+                <div class="flex justify-end">
+                    <button type="button" id="close-modal" class="mr-2 bg-gray-500 text-white p-2 rounded-md hover:bg-gray-600 focus:ring-2 focus:ring-gray-500 transition duration-300">
+                        Cancel
+                    </button>
+                    <button type="submit" class="bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 transition duration-300">
+                        Add Point
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Filter by Category -->
+    <div id="filter" class="mb-4 bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg shadow-lg">
+        <label for="category-filter" class="block text-sm font-medium text-gray-700">Filter by Category:</label>
+        <select id="category-filter" class="mt-1 p-2 w-full border rounded-md focus:ring-2 focus:ring-blue-500">
+            <option value="">All</option>
+            <option value="park">Park</option>
+            <option value="restaurant">Restaurant</option>
+            <option value="museum">Museum</option>
+        </select>
+    </div>
+
+    <footer class="mt-8 text-center text-gray-600">
+        <p>&copy; 2023 Map App. All rights reserved.</p>
+    </footer>
+</div>
+
+<script>
+    const map = L.map('map').setView([51.505537109466715, -0.12136459350585939], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+    }).addTo(map);
+
+    const modal = document.getElementById('modal');
+    const form = document.getElementById('point-form');
+    const closeModalButton = document.getElementById('close-modal');
+    const categoryFilter = document.getElementById('category-filter');
+    const searchInput = document.getElementById('search-input');
+    const searchResults = document.getElementById('search-results');
+    let clickedLatLng = null; // Store the clicked coordinates
+
+    // Add click event to the map
+    map.on('click', (e) => {
+        clickedLatLng = e.latlng;
+        modal.classList.remove('hidden');
+        document.getElementById('latitude').value = clickedLatLng.lat;
+        document.getElementById('longitude').value = clickedLatLng.lng;
+        L.marker(clickedLatLng, { title: 'New Point' }).addTo(map);
+    });
+
+    // Close modal
+    closeModalButton.addEventListener('click', () => {
+        modal.classList.add('hidden');
+    });
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.classList.add('hidden');
+        }
+    });
+
+    // Add new point
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const title = document.getElementById('title').value;
+        const category = document.getElementById('category').value;
+        const icon = document.getElementById('icon').value;
+        const latitude = document.getElementById('latitude').value;
+        const longitude = document.getElementById('longitude').value;
+        const address = document.getElementById('address').value;
+        const city = document.getElementById('city').value;
+
+        const response = await fetch('/api/map-points/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+            body: JSON.stringify({
+                title, category, icon, latitude, longitude, 
+                address, city, 
+                location: { type: "Point", coordinates: [parseFloat(longitude), parseFloat(latitude)] }
+            }),
+        });
+
+        if (response.ok) {
+            alert('Point added successfully!');
+            loadPoints();
+            form.reset();
+            modal.classList.add('hidden');
+        }
+    });
+
+    // Search Functionality
+    searchInput.addEventListener('input', async (e) => {
+    const query = e.target.value.trim();
+
+    if (query.length > 2) {
+        try {
+            const response = await fetch(`/api/search-points/?search=${query}`); // Correct URL
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const results = await response.json();
+            displaySearchResults(results);
+        } catch (error) {
+            console.error("Error fetching search results:", error);
+            // Handle error, e.g., display a message to the user
+            searchResults.innerHTML = '<div class="p-3 text-gray-600">Error fetching results.</div>';
+            searchResults.classList.remove('hidden');
+        }
+    } else {
+        searchResults.innerHTML = '';
+        searchResults.classList.add('hidden');
+    }
+});
+
+    // Display Search Results
+    function displaySearchResults(results) {
+        if (results.length > 0) {
+            searchResults.innerHTML = results.map(point => `
+                <div class="p-3 hover:bg-gray-100 cursor-pointer" data-lat="${point.location.coordinates[1]}" data-lng="${point.location.coordinates[0]}">
+                    <h3 class="font-bold">${point.title}</h3>
+                    <p class="text-sm text-gray-600">${point.category} • ${point.address}</p>
+                </div>
+            `).join('');
+            searchResults.classList.remove('hidden');
+        } else {
+            searchResults.innerHTML = '<div class="p-3 text-gray-600">No results found</div>';
+            searchResults.classList.remove('hidden');
+        }
+
+        // Add click event to each result
+        searchResults.querySelectorAll('div').forEach(result => {
+            result.addEventListener('click', () => {
+                const lat = parseFloat(result.getAttribute('data-lat'));
+                const lng = parseFloat(result.getAttribute('data-lng'));
+                searchInput.value = result.querySelector('h3').textContent; // Update search input
+                searchResults.classList.add('hidden'); // Hide dropdown
+                map.setView([lat, lng], 15); // Center map on the result
+                const marker = L.marker([lat, lng]).addTo(map);
+                marker.bindPopup(result.querySelector('h3').textContent).openPopup();
+            });
+        });
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+            searchResults.classList.add('hidden');
+        }
+    });
+
+    // Load Points
+    let points = [];
+    async function loadPoints() {
+        const response = await fetch('/api/map-points/');
+        points = await response.json();
+        // const points = await response.json();
+        map.eachLayer(layer => {
+            if (layer instanceof L.Marker) {
+                map.removeLayer(layer);
+            }
+        });
+
+        const categoryIcons = {
+            park: "https://cdn-icons-png.flaticon.com/512/484/484167.png",
+            restaurant: "https://cdn-icons-png.flaticon.com/512/5787/5787100.png",
+            museum: "https://cdn-icons-png.flaticon.com/512/619/619153.png",
+        };
+
+        points.forEach(point => {
+            if (!categoryFilter.value || point.category === categoryFilter.value) {
+                const icon = L.icon({
+                    iconUrl: categoryIcons[point.category] || 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41],
+                });
+                const marker = L.marker([point.location.coordinates[1], point.location.coordinates[0]], { icon, title: point.title }).addTo(map);
+                marker.bindPopup(point.title);
+            }
+        });
+    }
+
+
+
+    const bounds = L.latLngBounds();
+
+    points.forEach(point => {
+        const lat = point.location.coordinates[1];
+        const lng = point.location.coordinates[0];
+        bounds.extend([lat, lng]); // Extend bounds to include all points
+
+        const marker = L.marker([lat, lng]).addTo(map);
+        marker.bindPopup(point.title);
+    });
+
+    if (points.length > 0) {
+        map.fitBounds(bounds, { padding: [50, 50] }); // Auto-center
+    }
+
+
+
+    // Filter Points
+    categoryFilter.addEventListener('change', loadPoints);
+
+    // Initial Load
+    loadPoints();
+</script>
+{% endblock %}

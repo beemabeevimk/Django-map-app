@@ -1,0 +1,64 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+*.venv
+Pipfile
+Pipfile.lock
+
+# Django migrations
+*/migrations/*
+!*/migrations/__init__.py
+
+# SQLite database
+*.sqlite3
+*.db
+
+# PostgreSQL database dumps
+*.dump
+
+# Logs and debug files
+*.log
+logs/
+debug.log
+
+# Media & Static files (optional)
+media/
+staticfiles/
+
+# Sensitive settings (adjust as needed)
+.env
+config/settings/local.py
+config/settings/dev.py
+
+# IDE / Editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Python packaging
+*.egg-info/
+dist/
+build/
+
+# Docker files (if using Docker)
+*.dockerignore
+docker-compose.override.yml
+
+# Node modules (if using frontend tools)
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+
+# Celery beat schedule file
+celerybeat-schedule
+
+# Gunicorn logs
+gunicorn.log
+gunicorn.err
